@@ -1,8 +1,10 @@
+import flask
 from flask import Flask
 from flask import render_template
 from flask import request
 from flask import abort
 
+import boto
 import boto.ec2
 import functools
 
@@ -59,8 +61,11 @@ def instances(amazon_id, amazon_secret):
     conn = make_instance(amazon_id, amazon_secret)
 
     # Fetch tagged instances map
-    tagged_instances = get_tagged_instances(conn)
-    return flask.jsonify(sorted(tagged_instances.keys()))
+    try:
+        tagged_instances = get_tagged_instances(conn)
+        return flask.jsonify(items=sorted(tagged_instances.keys()))
+    except boto.exception.EC2ResponseError, e:
+        abort(e.status)
 
 if __name__ == '__main__':
     app.debug = True

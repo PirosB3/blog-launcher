@@ -20,8 +20,7 @@ app.controller('CredentialsController', function($scope, $location) {
     }
 });
 
-app.controller('PanelController', function($scope, $http, $routeParams) {
-    $routeParams
+app.controller('PanelController', function($scope, $http, $routeParams, $location) {
     $http({
         method: "GET",
         url: "/api/instances",
@@ -29,7 +28,10 @@ app.controller('PanelController', function($scope, $http, $routeParams) {
             'amazon-id': atob($routeParams.amazonId),
             'amazon-secret': atob($routeParams.amazonSecret),
         }
-    }).then(function(data) {
-        debugger;
+    }).then(function(res) {
+        $scope.servers = res.data.items;
+    }, function(reason) {
+        alert("Invalid AWS credentials for North California");
+        $location.path('/');
     });
 });
