@@ -20,7 +20,7 @@ app.controller('CredentialsController', function($scope, $location) {
     }
 });
 
-app.controller('PanelController', function($scope, $http, $routeParams, $location) {
+app.controller('PanelController', function($interval, $scope, $http, $routeParams, $location) {
     $scope.runningRequest = null;
 
     $scope.startInstance = function(instanceName) {
@@ -82,7 +82,6 @@ app.controller('PanelController', function($scope, $http, $routeParams, $locatio
     }
 
     $scope.reloadServers = function() {
-        $scope.runningRequest = true;
         $http({
             method: "GET",
             url: "/api/instances",
@@ -92,11 +91,11 @@ app.controller('PanelController', function($scope, $http, $routeParams, $locatio
             }
         }).then(function(res) {
             $scope.servers = res.data;
-            $scope.runningRequest = false;
         }, function(reason) {
             alert("Invalid AWS credentials for North California");
             $location.path('/');
         });
     }
+    $interval($scope.reloadServers, 1000 * 4);
     $scope.reloadServers();
 });
