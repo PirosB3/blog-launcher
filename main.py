@@ -14,6 +14,8 @@ app = Flask(__name__)
 AMAZON_REGION = "us-west-1"
 AMAZON_TAG_KEY = "provider"
 AMAZON_TAG_VALUE = "daniel-pyrathon"
+AMAZON_DEFAULT_SECURITY_GROUP = "daniel-pyrathon"
+WORDPRESS_AMI_ID = "ami-d9bb5e9d"
 
 
 class AWSJSONEncoder(JSONEncoder):
@@ -27,6 +29,7 @@ class AWSJSONEncoder(JSONEncoder):
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 def fetch_amazon_credentials(f):
 
@@ -42,6 +45,7 @@ def fetch_amazon_credentials(f):
         return f(*args, **kwargs)
 
     return wrapper
+
 
 def fetch_connection_and_instances(f):
 
@@ -63,6 +67,7 @@ def fetch_connection_and_instances(f):
 
     return wrapper
 
+
 def get_tagged_instances(connection):
     all_reservations = connection.get_all_instances(
         filters={
@@ -76,12 +81,25 @@ def get_tagged_instances(connection):
             results[instance.id] = instance
     return results
 
+
 def make_instance(amazon_id, amazon_secret):
     return boto.ec2.connect_to_region(
         AMAZON_REGION,
         aws_access_key_id=amazon_id,
         aws_secret_access_key=amazon_secret,
     )
+
+def get_security_group(connection):
+    try:
+        return connection.get_all_security_groups(
+            groupnames=[AMAZON_DEFAULT_SECURITY_GROUP]
+        )[0]
+    except boto.exception.EC2ResponseError, e:
+        sg = connection.create_security_group(AMAZON_DEFAULT_SECURITY_GROUP,
+                                              'Wordpress security group')
+        sg.authorize('tcp', 80, 80, '0.0.0.0/0')
+        return sg
+
 
 @app.route('/api/instances/<instance_id>', methods=['DELETE'])
 @fetch_amazon_credentials
@@ -94,9 +112,41 @@ def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
         abort(404)
 
     # Terminate instance
-    selected_instance.terminate()
+    selected_instance.stop()
     return "", 202
 
+
+@app.route('/api/instances/<instance_id>', methods=['UPDATE'])
+@fetch_amazon_credentials
+@fetch_connection_and_instances
+def update_instance(instance_id, connection, instances, amazon_id, amazon_secret):
+
+    try:
+        selected_instance = instances[instance_id]
+    except KeyError:
+        abort(404)
+
+    # Start instance
+    selected_instance.start()
+    return "", 202
+
+
+@app.route('/api/instances', methods=["CREATE"])
+@fetch_amazon_credentials
+def create_instances(amazon_id, amazon_secret):
+
+    # Get Amazon instance
+    connection = make_instance(amazon_id, amazon_secret)
+    sg = get_security_group(connection)
+
+    res = connection.run_instances(
+        WORDPRESS_AMI_ID,
+        instance_type='t1.micro',
+        security_groups=[sg])
+
+    res.instances[0].add_tag(AMAZON_TAG_KEY, AMAZON_TAG_VALUE)
+    return "", 202
+    
 
 @app.route('/api/instances')
 @fetch_amazon_credentials
@@ -104,6 +154,7 @@ def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
 def instances(connection, instances, amazon_id, amazon_secret):
     # Map each instance object to it's state
     return flask.jsonify(instances)
+
 
 if __name__ == '__main__':
     app.debug = True

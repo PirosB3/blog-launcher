@@ -1,4 +1,23 @@
- <h3>All Bitnami Servers</h3>
- <ul class="list-group">
-  <li ng-repeat="server in servers" class="list-group-item">{{ server }}</li>
-</ul>
+<h2>All Bitnami Servers</h2>
+<div ng-show="servers">
+    <div ng-repeat="(name, state) in servers" class="panel", ng-class="{'panel-info': state == 'Pending', 'panel-success': state === 'Running', 'panel-danger': (state === 'Terminated' || state === 'Stopped'), 'panel-warning': state === 'Shutting-down', 'panel-warning': state === 'Stopping'}">
+        <div class="panel-heading">
+            <h3 class="panel-title" id="panel-title">{{ name }}<a class="anchorjs-link" href="#panel-title"><span class="anchorjs-icon"></span></a></h3>
+        </div>
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-md-3 pull-left">
+                    State: <b>{{ state }}</b>
+                </div>
+                <div class="col-md-3 pull-right">
+                    <button ng-disabled="runningRequest" ng-show="state === 'Running'" ng-click="stopInstance(name);" class="btn btn-danger">Stop</button>
+                    <button ng-disabled="runningRequest" ng-show="state === 'Stopped'" ng-click="startInstance(name);" class="btn btn-default">Start</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button ng-disabled="runningRequest" class="btn btn-success" ng-click="createInstance();">Create new instance</button>
+</div>
+<div ng-hide="servers" class="list-group">
+    <p class="text-center">Loading..</p>
+</div>
