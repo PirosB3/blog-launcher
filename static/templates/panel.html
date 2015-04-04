@@ -1,17 +1,17 @@
 <h2>All Bitnami Servers</h2>
 <div ng-show="servers">
-    <div ng-repeat="(name, state) in servers" class="panel", ng-class="{'panel-info': state == 'Pending', 'panel-success': state === 'Running', 'panel-danger': (state === 'Terminated' || state === 'Stopped'), 'panel-warning': state === 'Shutting-down', 'panel-warning': state === 'Stopping'}">
+    <div ng-repeat="(name, data) in servers" class="panel", ng-class="{'panel-info': data.state == 'Pending', 'panel-success': data.state === 'Running', 'panel-danger': (data.state === 'Terminated' || data.state === 'Stopped'), 'panel-warning': data.state === 'Shutting-down', 'panel-warning': data.state === 'Stopping'}">
         <div class="panel-heading">
             <h3 class="panel-title" id="panel-title">{{ name }}<a class="anchorjs-link" href="#panel-title"><span class="anchorjs-icon"></span></a></h3>
         </div>
         <div class="panel-body">
             <div class="row">
                 <div class="col-md-3 pull-left">
-                    State: <b>{{ state }}</b>
+                    State: <b>{{ data.state }}</b> <span ng-show="data.state === 'Running'">- <a ng-href="{{'http://' + data.ip + '/'}}">Browse</a></span>
                 </div>
                 <div class="col-md-3 pull-right">
-                    <button ng-disabled="runningRequest" ng-show="state === 'Running'" ng-click="stopInstance(name);" class="btn btn-danger">Stop</button>
-                    <button ng-disabled="runningRequest" ng-show="state === 'Stopped'" ng-click="startInstance(name);" class="btn btn-default">Start</button>
+                    <button ng-disabled="runningRequest" ng-show="data.state === 'Running'" ng-click="stopInstance(name);" class="btn btn-danger">Stop</button>
+                    <button ng-disabled="runningRequest" ng-show="data.state === 'Stopped'" ng-click="startInstance(name);" class="btn btn-default">Start</button>
                 </div>
             </div>
         </div>

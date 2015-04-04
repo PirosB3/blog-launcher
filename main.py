@@ -22,7 +22,10 @@ class AWSJSONEncoder(JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, boto.ec2.instance.Instance):
-            return obj.state.capitalize()
+            return {
+                'state': obj.state.capitalize(),
+                'ip': obj.ip_address
+            }
         return JSONEncoder.default(self, obj)
 
 

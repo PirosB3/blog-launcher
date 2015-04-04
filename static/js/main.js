@@ -96,6 +96,6 @@ app.controller('PanelController', function($interval, $scope, $http, $routeParam
             $location.path('/');
         });
     }
-    $interval($scope.reloadServers, 1000 * 4);
+    $interval($scope.reloadServers, 1000 * 3);
     $scope.reloadServers();
 });
