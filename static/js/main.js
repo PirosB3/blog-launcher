@@ -1,21 +1,23 @@
 var app = angular.module('bitnami', ['ngRoute']);
 
 app.config(function($routeProvider, $locationProvider) {
-  $routeProvider
-   .when('/', {
-    templateUrl: '/static/templates/credentials.html',
-    controller: 'CredentialsController',
-    })
-   .when('/panel/:amazonId/:amazonSecret', {
-    templateUrl: '/static/templates/panel.html',
-    controller: 'PanelController',
-    })
+    $routeProvider
+        .when('/', {
+            templateUrl: '/static/templates/credentials.html',
+            controller: 'CredentialsController',
+        })
+        .when('/panel/:amazonId/:amazonSecret', {
+            templateUrl: '/static/templates/panel.html',
+            controller: 'PanelController',
+        })
 });
 
 app.controller('CredentialsController', function($scope, $location) {
     $scope.processForm = function() {
         var amazonId = $scope.amazonId;
         var amazonSecret = $scope.amazonSecret;
+
+        // The most unsecure authentication method ever..
         $location.path('/panel/' + btoa(amazonId) + "/" + btoa(amazonSecret));
     }
 });
@@ -96,6 +98,8 @@ app.controller('PanelController', function($interval, $scope, $http, $routeParam
             $location.path('/');
         });
     }
+
+    // Every 3 seconds update server state
     $interval($scope.reloadServers, 1000 * 3);
     $scope.reloadServers();
 });
