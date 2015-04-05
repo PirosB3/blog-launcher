@@ -37,7 +37,8 @@ class AWSJSONEncoder(JSONEncoder):
                 'ip': obj.instance.ip_address
             }
             if obj.state:
-                serialized_instance['check_status'] = obj.state.system_status.status
+                status = obj.state.system_status.status
+                serialized_instance['check_status'] = status
             return serialized_instance
         return JSONEncoder.default(self, obj)
 
@@ -98,8 +99,9 @@ def get_tagged_instances(connection):
             results[instance.id] = AmazonInstanceWrapper(instance)
             if instance.state == u'running':
                 running_instances.append(instance.id)
-    
-    for instance_status in connection.get_all_instance_status(instance_ids=running_instances):
+
+    for instance_status in connection.get_all_instance_status(
+            instance_ids=running_instances):
         results[instance_status.id].set_state(instance_status)
 
     return results
@@ -112,12 +114,13 @@ def make_instance(amazon_id, amazon_secret):
         aws_secret_access_key=amazon_secret,
     )
 
+
 def get_security_group(connection):
     try:
         return connection.get_all_security_groups(
             groupnames=[AMAZON_DEFAULT_SECURITY_GROUP]
         )[0]
-    except boto.exception.EC2ResponseError, e:
+    except boto.exception.EC2ResponseError:
         sg = connection.create_security_group(AMAZON_DEFAULT_SECURITY_GROUP,
                                               'Wordpress security group')
         sg.authorize('tcp', 80, 80, '0.0.0.0/0')
@@ -127,8 +130,8 @@ def get_security_group(connection):
 @app.route('/api/instances/<instance_id>', methods=['DELETE'])
 @fetch_amazon_credentials
 @fetch_connection_and_instances
-def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
-
+def stop_instance(instance_id, connection, instances, amazon_id,
+                  amazon_secret):
     try:
         selected_instance = instances[instance_id].instance
     except KeyError:
@@ -142,8 +145,8 @@ def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
 @app.route('/api/instances/<instance_id>', methods=['UPDATE'])
 @fetch_amazon_credentials
 @fetch_connection_and_instances
-def update_instance(instance_id, connection, instances, amazon_id, amazon_secret):
-
+def update_instance(instance_id, connection, instances, amazon_id,
+                    amazon_secret):
     try:
         selected_instance = instances[instance_id].instance
     except KeyError:
@@ -169,7 +172,7 @@ def create_instances(amazon_id, amazon_secret):
 
     res.instances[0].add_tag(AMAZON_TAG_KEY, AMAZON_TAG_VALUE)
     return "", 202
-    
+
 
 @app.route('/api/instances')
 @fetch_amazon_credentials
