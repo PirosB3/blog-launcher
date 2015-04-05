@@ -7,7 +7,9 @@
         <div class="panel-body">
             <div class="row">
                 <div class="col-md-3 pull-left">
-                    State: <b>{{ data.state }}</b> <span ng-show="data.state === 'Running'">- <a ng-href="{{'http://' + data.ip + '/'}}">Browse</a></span>
+                    State: <b>{{ data.state }}</b>
+                    <span ng-show="data.state === 'Running' && data.check_status == 'ok'">- <a ng-href="{{'http://' + data.ip + '/'}}">Browse</a></span>
+                    <span ng-show="data.state === 'Running' && data.check_status == 'initializing'">- Initializing..</span>
                 </div>
                 <div class="col-md-3 pull-right">
                     <button ng-disabled="runningRequest" ng-show="data.state === 'Running'" ng-click="stopInstance(name);" class="btn btn-danger">Stop</button>

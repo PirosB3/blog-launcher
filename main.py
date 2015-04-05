@@ -8,6 +8,7 @@ from flask.json import JSONEncoder
 import boto
 import boto.ec2
 import functools
+import os
 
 app = Flask(__name__)
 
@@ -18,14 +19,26 @@ AMAZON_DEFAULT_SECURITY_GROUP = "daniel-pyrathon"
 WORDPRESS_AMI_ID = "ami-d9bb5e9d"
 
 
+class AmazonInstanceWrapper(object):
+    def __init__(self, instance):
+        self.instance = instance
+        self.state = None
+
+    def set_state(self, state):
+        self.state = state
+
+
 class AWSJSONEncoder(JSONEncoder):
 
     def default(self, obj):
-        if isinstance(obj, boto.ec2.instance.Instance):
-            return {
-                'state': obj.state.capitalize(),
-                'ip': obj.ip_address
+        if isinstance(obj, AmazonInstanceWrapper):
+            serialized_instance = {
+                'state': obj.instance.state.capitalize(),
+                'ip': obj.instance.ip_address
             }
+            if obj.state:
+                serialized_instance['check_status'] = obj.state.system_status.status
+            return serialized_instance
         return JSONEncoder.default(self, obj)
 
 
@@ -78,10 +91,17 @@ def get_tagged_instances(connection):
             "tag-value": AMAZON_TAG_VALUE
         }
     )
+    running_instances = []
     results = {}
     for reservation in all_reservations:
         for instance in reservation.instances:
-            results[instance.id] = instance
+            results[instance.id] = AmazonInstanceWrapper(instance)
+            if instance.state == u'running':
+                running_instances.append(instance.id)
+    
+    for instance_status in connection.get_all_instance_status(instance_ids=running_instances):
+        results[instance_status.id].set_state(instance_status)
+
     return results
 
 
@@ -110,7 +130,7 @@ def get_security_group(connection):
 def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
 
     try:
-        selected_instance = instances[instance_id]
+        selected_instance = instances[instance_id].instance
     except KeyError:
         abort(404)
 
@@ -125,7 +145,7 @@ def stop_instance(instance_id, connection, instances, amazon_id, amazon_secret):
 def update_instance(instance_id, connection, instances, amazon_id, amazon_secret):
 
     try:
-        selected_instance = instances[instance_id]
+        selected_instance = instances[instance_id].instance
     except KeyError:
         abort(404)
 
@@ -160,6 +180,6 @@ def instances(connection, instances, amazon_id, amazon_secret):
 
 
 if __name__ == '__main__':
-    app.debug = True
+    app.debug = bool(os.environ.get('BITNAMI_DEBUG', False))
     app.json_encoder = AWSJSONEncoder
     app.run()
