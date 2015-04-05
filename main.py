@@ -20,22 +20,32 @@ WORDPRESS_AMI_ID = "ami-d9bb5e9d"
 
 
 class AmazonInstanceWrapper(object):
-    def __init__(self, instance):
-        self.instance = instance
-        self.state = None
+    __slots__ = ['instance', 'state']
 
-    def set_state(self, state):
+    def __init__(self, instance, state=None):
+        self.instance = instance
         self.state = state
 
 
 class AWSJSONEncoder(JSONEncoder):
 
     def default(self, obj):
+
+        # Serialize AmazonInstanceWrapper in a custom way
         if isinstance(obj, AmazonInstanceWrapper):
+
+            # All AmazonInstanceWrapper instances should have
+            # an instance object, fetch state and IP address
+            # (if present)
             serialized_instance = {
                 'state': obj.instance.state.capitalize(),
                 'ip': obj.instance.ip_address
             }
+
+            # If an AmazonInstanceWrapper has a state object,
+            # fetch the Status Check too. This is used to
+            # distinguish a running and initialized instance
+            # from a running and initializing instance.
             if obj.state:
                 status = obj.state.system_status.status
                 serialized_instance['check_status'] = status
@@ -43,12 +53,12 @@ class AWSJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
 def fetch_amazon_credentials(f):
+    """
+    This decorator is used to sanitize and fetch Amazon
+    credentials from the headers. In case they are not found
+    the request is automatically aborted with a 401 error.
+    """
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -65,6 +75,12 @@ def fetch_amazon_credentials(f):
 
 
 def fetch_connection_and_instances(f):
+    """
+    This decorator maps Amazon credentials to an Amazon
+    connection instance. It also fetches all tagged instances
+    and injects them in the kwargs. In case there is an auth
+    error the API error code is proxied to the request.
+    """
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -97,12 +113,17 @@ def get_tagged_instances(connection):
     for reservation in all_reservations:
         for instance in reservation.instances:
             results[instance.id] = AmazonInstanceWrapper(instance)
+
+            # Add all running instances into a separate list in
+            # order to perform a batch request for status checks.
             if instance.state == u'running':
                 running_instances.append(instance.id)
 
+    # Fetch status checks for all instances, and put them into
+    # the wrapper object.
     for instance_status in connection.get_all_instance_status(
             instance_ids=running_instances):
-        results[instance_status.id].set_state(instance_status)
+        results[instance_status.id].state = instance_status
 
     return results
 
@@ -116,6 +137,9 @@ def make_instance(amazon_id, amazon_secret):
 
 
 def get_security_group(connection):
+    """
+    This method gets or creates a security group for port 80
+    """
     try:
         return connection.get_all_security_groups(
             groupnames=[AMAZON_DEFAULT_SECURITY_GROUP]
@@ -125,6 +149,11 @@ def get_security_group(connection):
                                               'Wordpress security group')
         sg.authorize('tcp', 80, 80, '0.0.0.0/0')
         return sg
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 
 @app.route('/api/instances/<instance_id>', methods=['DELETE'])
